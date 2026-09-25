@@ -1,100 +1,135 @@
-﻿using System;
+// The CSP Rule Collector tab, built with Avalonia (CLeARINET's UI toolkit,
+// on Windows and macOS). It replaces the original extension's WinForms tab
+// and does the same things:
+//
+//   - "Enable Rule Collection" and "Verbose Logging" check boxes.
+//   - A list of document URIs that have reported violations.
+//   - Selecting one or more shows each document's generated policy, both
+//     as one line and one directive per line.
+//
+// One difference: there's no right-click "Copy". Select the text in the
+// policy box and copy it from there instead.
+
+using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Data;
-using System.Linq;
+using System.Collections.ObjectModel;
 using System.Text;
-using System.Windows.Forms;
-using Fiddler;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Threading;
 
-namespace FiddlerCSP
+namespace ClearinetCSP
 {
-    public partial class RuleCollectionView : UserControl
+    public class RuleCollectionView : UserControl
     {
-        private CSPRuleCollector collector;
+        private readonly ObservableCollection<string> documentUris = new ObservableCollection<string>();
+        private readonly Dictionary<string, string> rules = new Dictionary<string, string>();
+        private readonly ListBox documentList;
+        private readonly TextBox selectedRuleText;
 
-        public RuleCollectionView(CSPRuleCollector collectorIn)
+        public RuleCollectionView(CSPRuleCollector collector)
         {
-            collector = collectorIn;
-            collector.OnRuleAddedOrModified += AddToListViewOnUIThread;
-
-            InitializeComponent();
-        }
-
-        private void RuleCollectionView_Load(object sender, EventArgs e)
-        {
-            ContextMenu contextMenu = new ContextMenu();
-            contextMenu.MenuItems.Add("Copy", new EventHandler(delegate(object o, EventArgs copyEventArgs) {
-                if (RuleCollectionListView.SelectedItems.Count < 1) return;
-                StringBuilder sbToCopy = new StringBuilder();
-                foreach (ListViewItem item in RuleCollectionListView.SelectedItems)
-                {
-                    sbToCopy.AppendFormat("{0} {1}\n", item.Text, item.SubItems[1].Text);
-                }
-                Clipboard.SetText(sbToCopy.ToString());
-            }));
-            RuleCollectionListView.ContextMenu = contextMenu;
-
-            RuleCollectionListView.ItemSelectionChanged += RuleCollectionListView_ItemSelectionChanged;
-
-            VerboseLoggingCheckBox.Checked = FiddlerExtension.Settings.verboseLogging;
-            EnableRuleCollectionCheckBox.Checked = FiddlerExtension.Settings.enabled;
-        }
-
-        void RuleCollectionListView_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
-        {
-            string uri = e.Item.Text;
-            string rule = e.Item.SubItems[1].Text;
-            string formattedRule = rule.Replace("Content-Security-Policy: ", "").Replace("; ", "\r\n\r\n").Replace(" ", "\r\n\t");
-            SelectedRuleText.Text = "Document: " + uri + "\r\n\r\n" + rule + "\r\n\r\n" + formattedRule;
-        }
-
-        private delegate void AddToListView(string uri, string rule);
-
-        private void AddToListViewOnUIThread(string uri, string rule)
-        {
-            if (RuleCollectionListView.InvokeRequired)
+            var enableRuleCollection = new CheckBox
             {
-                RuleCollectionListView.Invoke(new AddToListView(AddToListViewOnUIThread), new object[] {uri, rule});
+                Content = "Enable Rule Collection",
+                IsChecked = CspExtension.Settings.enabled,
+            };
+            enableRuleCollection.IsCheckedChanged += (sender, e) =>
+                CspExtension.Settings.enabled = enableRuleCollection.IsChecked == true;
+
+            var verboseLogging = new CheckBox
+            {
+                Content = "Verbose Logging",
+                IsChecked = CspExtension.Settings.verboseLogging,
+            };
+            verboseLogging.IsCheckedChanged += (sender, e) =>
+                CspExtension.Settings.verboseLogging = verboseLogging.IsChecked == true;
+
+            var help = new Button { Content = "Help..." };
+            help.Click += (sender, e) => Clearinet.CompatShim.Utilities.LaunchHyperlink("https://github.com/MarkSPowell/CSP-CLeARINET-Extension");
+
+            var options = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Spacing = 16,
+                Margin = new Thickness(0, 0, 0, 8),
+            };
+            options.Children.Add(enableRuleCollection);
+            options.Children.Add(verboseLogging);
+            options.Children.Add(help);
+
+            documentList = new ListBox
+            {
+                ItemsSource = documentUris,
+                SelectionMode = SelectionMode.Multiple,
+            };
+            documentList.SelectionChanged += (sender, e) => ShowSelectedRules();
+
+            selectedRuleText = new TextBox
+            {
+                IsReadOnly = true,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+            };
+
+            var splitter = new GridSplitter { ResizeDirection = GridResizeDirection.Columns };
+
+            var lists = new Grid { ColumnDefinitions = new ColumnDefinitions("*,4,*") };
+            Grid.SetColumn(documentList, 0);
+            Grid.SetColumn(splitter, 1);
+            Grid.SetColumn(selectedRuleText, 2);
+            lists.Children.Add(documentList);
+            lists.Children.Add(splitter);
+            lists.Children.Add(selectedRuleText);
+
+            var layout = new DockPanel { Margin = new Thickness(8) };
+            DockPanel.SetDock(options, Dock.Top);
+            layout.Children.Add(options);
+            layout.Children.Add(lists);
+            Content = layout;
+
+            // Reports arrive on proxy threads; the list belongs to the UI thread.
+            collector.OnRuleAddedOrModified += (uri, rule) => Dispatcher.UIThread.Post(() => AddOrUpdate(uri, rule));
+        }
+
+        private void AddOrUpdate(string uri, string rule)
+        {
+            rules[uri] = rule;
+            if (!documentUris.Contains(uri))
+            {
+                documentUris.Add(uri);
             }
-            else
+
+            ShowSelectedRules();
+        }
+
+        // The same text the original WinForms tab showed for its selected document.
+        private void ShowSelectedRules()
+        {
+            var text = new StringBuilder();
+            if (documentList.SelectedItems != null)
             {
-                ListViewItem listViewItem = null;
-                foreach (ListViewItem check in RuleCollectionListView.Items)
+                foreach (var item in documentList.SelectedItems)
                 {
-                    if (check.Text == uri)
+                    var uri = item as string;
+                    string rule;
+                    if (uri == null || !rules.TryGetValue(uri, out rule))
                     {
-                        listViewItem = check;
-                        break;
+                        continue;
                     }
-                }
-                if (listViewItem == null)
-                {
-                    listViewItem = new ListViewItem(uri);
-                    listViewItem.SubItems.Add(rule);
-                    RuleCollectionListView.Items.Add(listViewItem);
-                }
-                else
-                {
-                    listViewItem.SubItems[1].Text = rule;
+
+                    var formattedRule = rule.Replace("Content-Security-Policy: ", "").Replace("; ", "\n\n").Replace(" ", "\n\t");
+                    if (text.Length > 0)
+                    {
+                        text.Append("\n\n----------\n\n");
+                    }
+
+                    text.Append("Document: ").Append(uri).Append("\n\n").Append(rule).Append("\n\n").Append(formattedRule);
                 }
             }
-        }
 
-        private void VerboseLoggingCheckBox_CheckedChanged(object sender, EventArgs e)
-        {
-            FiddlerExtension.Settings.verboseLogging = VerboseLoggingCheckBox.Checked;
-        }
-
-        private void EnableRuleCollectionCheckBox_CheckedChanged(object sender, EventArgs e)
-        {
-            FiddlerExtension.Settings.enabled = EnableRuleCollectionCheckBox.Checked;
-        }
-
-        private void lnkHelp_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            Utilities.LaunchHyperlink("https://github.com/david-risney/CSP-Fiddler-Extension");
+            selectedRuleText.Text = text.ToString();
         }
     }
 }

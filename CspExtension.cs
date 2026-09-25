@@ -2,36 +2,35 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Windows.Forms;
-using Fiddler;
+using Clearinet.CompatShim;
 
-[assembly: Fiddler.RequiredVersion("2.4.9.3")]
-namespace FiddlerCSP
+[assembly: RequiredVersion("2.4.9.3")]
+namespace ClearinetCSP
 {
-    public class FiddlerExtension : IAutoTamper3, IDisposable
+    public class CspExtension : IAutoTamper3, IDisposable
     {
         public static class Settings
         {
-            private const string prefix = "FiddlerCSPExtension.";
+            private const string prefix = "ClearinetCSP.";
             public static bool verboseLogging
             {
-                get { return Fiddler.FiddlerApplication.Prefs.GetBoolPref(prefix + "verboseLogging", false); }
-                set { Fiddler.FiddlerApplication.Prefs.SetBoolPref(prefix + "verboseLogging", value); }
+                get { return FiddlerApplication.Prefs.GetBoolPref(prefix + "verboseLogging", false); }
+                set { FiddlerApplication.Prefs.SetBoolPref(prefix + "verboseLogging", value); }
             }
             public static bool enabled
             {
-                get { return Fiddler.FiddlerApplication.Prefs.GetBoolPref(prefix + "enabled", false); }
-                set { Fiddler.FiddlerApplication.Prefs.SetBoolPref(prefix + "enabled", value); }
+                get { return FiddlerApplication.Prefs.GetBoolPref(prefix + "enabled", false); }
+                set { FiddlerApplication.Prefs.SetBoolPref(prefix + "enabled", value); }
             }
         }
 
-        public class FiddlerAppLogger : ILogger
+        public class HostLogger : ILogger
         {
             public void Log(string message)
             {
                 if (Settings.verboseLogging)
                 {
-                    FiddlerApplication.Log.LogString("FiddlerCSP: " + message);
+                    FiddlerApplication.Log.LogString("CLeARINET CSP: " + message);
                 }
             }
         }
@@ -40,9 +39,9 @@ namespace FiddlerCSP
         private ILogger logger;
         private CSPRuleCollector collector;
 
-        public FiddlerExtension()
+        public CspExtension()
         {
-            logger = new FiddlerAppLogger();
+            logger = new HostLogger();
             collector = new CSPRuleCollector(logger);
         }
 
@@ -56,7 +55,7 @@ namespace FiddlerCSP
 
             if (!session.HostnameIs(reportHost) || session.isFTP) return;
 
-            // TODO: We should offer an option to hide the reports from Fiddler; change "ui-strikeout" to "ui-hide" in the next line
+            // TODO: We should offer an option to hide the reports from the session list; change "ui-strikeout" to "ui-hide" in the next line
             session["ui-strikeout"] = "CSPReportGenerator";
 
             if (session.HTTPMethodIs("CONNECT"))
@@ -101,7 +100,7 @@ namespace FiddlerCSP
             if (!session.isTunnel && !session.isFTP)
             {
                 // Use https report URI for https sites because otherwise Chrome won't report.
-                // Use http report URI for http sites because Fiddler might not be configured to MitM https.
+                // Use http report URI for http sites because the proxy might not be decrypting https.
                 string reportUri = (session.isHTTPS ? "https" : "http") + "://" + reportHost;
                 // child-src generates a complaint in FireFox as apparently it isn't implemented.
                 string CSPROCommon = "child-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'; img-src 'none'; media-src 'none'; object-src 'none'; style-src 'none'; ";
@@ -109,7 +108,7 @@ namespace FiddlerCSP
                 // both reported as empty string blocked-uri properties. Sort of a CSP spec problem.
                 session.oResponse.headers.Add("Content-Security-Policy-Report-Only", CSPROCommon + "script-src 'unsafe-eval'; report-uri " + reportUri + "/unsafe-inline");
                 session.oResponse.headers.Add("Content-Security-Policy-Report-Only", "script-src 'unsafe-inline'; report-uri " + reportUri + "/unsafe-eval");
-                session.oResponse.headers.Add("X-Fiddled-With-By", "FiddlerCSP");
+                session.oResponse.headers.Add("X-Modified-By", "CLeARINET CSP Rule Collector");
 
                 // Set cache headers to not cache response since we're modifying the headers and don't want browsers to remember this.
                 session.oResponse.headers.Remove("Cache-Control");
@@ -132,11 +131,8 @@ namespace FiddlerCSP
 
         private void AddTab()
         {
-            TabPage page = new TabPage("CSP Rule Collector");
-            var ruleCollectionView = new RuleCollectionView(collector);
-            ruleCollectionView.Dock = DockStyle.Fill;
-            page.Controls.Add(ruleCollectionView);
-            FiddlerApplication.UI.tabsViews.TabPages.Add(page);
+            // CLeARINET's own API for an extension's tab; the view is Avalonia.
+            Clearinet.Compatibility.Extensions.ExtensionUi.AddTab("CSP Rule Collector", new RuleCollectionView(collector));
         }
 
         private void Dispose(bool managedAndNative)

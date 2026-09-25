@@ -1,32 +1,79 @@
-# CSP-Fiddler-Extension
-Content Security Policy rule collector extension for Fiddler.
+# CSP Rule Collector for CLeARINET
 
-## What's this?
-This is an extension for [Fiddler4](http://www.telerik.com/fiddler) that helps you produce the minimal required set of [Content-Security-Policy](https://docs.webplatform.org/wiki/tutorials/content-security-policy) rules for web pages. Install the extension, turn it on, navigate to web pages *using a browser that supports CSP*, and view the CSP rules that the extension generates.
+An extension for [CLeARINET](https://github.com/MarkSPowell/CLeARINET) that
+works out the smallest set of Content-Security-Policy rules a web page
+needs. It runs on Windows and macOS.
+
+This is a CLeARINET-only version of David Risney's
+[CSP-Fiddler-Extension](https://github.com/david-risney/CSP-Fiddler-Extension)
+(forked from [ericlaw1979/CSP-Fiddler-Extension](https://github.com/ericlaw1979/CSP-Fiddler-Extension)).
+**For Fiddler Classic, use the original.**
+
+## Build
+
+This builds against CLeARINET's compatibility layer, so it needs CLeARINET's
+source. Clone both repositories side by side:
+
+    GitHub\CLeARINET
+    GitHub\CSP-CLeARINET-Extension
+
+then, in this folder:
+
+    dotnet build -c Release
+
+The extension is `bin\Release\net10.0\CLeARINETCSP.dll`. (If CLeARINET is
+somewhere else, add `-p:ClearinetRoot=<path to CLeARINET>`.)
+
+`dotnet test` runs the original extension's rule-generation tests.
 
 ## Install
-Win+R, powershell.exe and enter the following into the PowerShell prompt:
 
-    wget -uri http://david-risney.github.io/CSP-Fiddler-Extension/fiddlercsp.dll -OutFile (Join-Path (mkdir -Force ~\Documents\Fiddler2\Scripts) FiddlerCSP.dll)
+Copy `CLeARINETCSP.dll` (only that file) into the CLeARINET extensions folder
+and restart CLeARINET:
 
-Or if you want to put in more effort, clone this repo, build it, and copy the built FiddlerCSP.dll to your ~\Documents\Fiddler2\Scripts directory.
+- Windows: `Documents\CLeARINET\Extensions`
+- macOS: `~/Documents/CLeARINET/Extensions`
 
 ## Run
-After installing:
- * Start Fiddler4.
- * Click on the 'CSP Rule Collector' tab.
- * Ensure the 'Enable Rule Collection' checkbox is checked.
- * In your web browser navigate to the page for which you want to generate CSP rules.
- * Go back to the 'CSP Rule Collector' tab.
- * Select the URI of the document you visited to see its CSP rules.
 
-Do not leave the 'Enable Rule Collection' checkbox checked. While checked the extension will make web responses non-cachable in your browser and injects CSP HTTP headers that will result in possibly many developer console errors.
+- Start CLeARINET's proxy.
+- Open the **CSP Rule Collector** tab (next to Inspectors).
+- Tick **Enable Rule Collection**.
+- Clear your browser's cache, then browse to the page you want rules for.
+  CLeARINET intercepts HTTPS only, so use an HTTPS page.
+- Select the page's URI in the tab to see its rules.
 
-To get accurate results be sure to clear your browsers cache of any site for which you want to collect CSP rules. If resources are cached the extension won't be able to inject CSP HTTP headers and collect CSP information. Also be sure to visit your site in all the browsers you care about in that same Fiddler session. All browser's results will be incorporated into the one CSP rule in that Fiddler session. Different browsers may violate different CSP rules due to different feature support resulting in different HTTP requests so be sure to check each browser.
+Don't leave **Enable Rule Collection** on. While it's on, the extension makes
+responses non-cacheable and adds CSP headers, which can fill the browser's
+developer console with errors.
 
-## How Does It Work?
-The extension adds mock **Content-Security-Policy-Report-Only** headers to servers' responses:
+For accurate results, clear the browser's cache for the site first:
+resources served from the cache never pass through CLeARINET, so the
+extension can't see them. Visit the site in every browser you care about in
+the same CLeARINET session; all browsers' reports are combined into one rule.
+
+## How it works
+
+The extension adds two report-only policies to every response, such as:
 
     Content-Security-Policy-Report-Only: child-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'; img-src 'none'; media-src 'none'; object-src 'none'; style-src 'none'; script-src 'unsafe-eval'; report-uri https://fiddlercsp.deletethis.net/unsafe-inline
 
-It then watches for the browser to report errors to the specified **report-uri** and uses those reports to generate the proper policy declaration.
+The browser reports every violation to the report URI. The extension
+answers those report requests itself (they never leave your machine) and
+builds the policy from them. The two policies use different report URIs so
+inline script and `eval()` can be told apart, since both are reported with an
+empty blocked URI.
+
+## Differences from the Fiddler version
+
+- The tab is built with Avalonia instead of WinForms. It has no right-click
+  **Copy**; copy from the policy text box instead.
+- Names no longer mention Fiddler: the assembly is `CLeARINETCSP`, the
+  namespace `ClearinetCSP`, the extension class `CspExtension`, and the
+  preferences `ClearinetCSP.enabled` and `ClearinetCSP.verboseLogging`.
+  Responses it changes are marked `X-Modified-By: CLeARINET CSP Rule Collector`.
+- The report host is unchanged: `fiddlercsp.deletethis.net`.
+
+## License
+
+MIT, as the original. See [LICENSE](LICENSE).
