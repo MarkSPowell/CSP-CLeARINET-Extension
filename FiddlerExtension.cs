@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+#if !CLEARINET
 using System.Windows.Forms;
+#endif
 using Fiddler;
 
 [assembly: Fiddler.RequiredVersion("2.4.9.3")]
@@ -132,11 +134,17 @@ namespace FiddlerCSP
 
         private void AddTab()
         {
+#if CLEARINET
+            // CLeARINET (Windows and macOS) has no WinForms, so the tab is an
+            // Avalonia view instead. See Clearinet/RuleCollectorView.cs.
+            Clearinet.Compatibility.Extensions.ExtensionUi.AddTab("CSP Rule Collector", new RuleCollectorView(collector));
+#else
             TabPage page = new TabPage("CSP Rule Collector");
             var ruleCollectionView = new RuleCollectionView(collector);
             ruleCollectionView.Dock = DockStyle.Fill;
             page.Controls.Add(ruleCollectionView);
             FiddlerApplication.UI.tabsViews.TabPages.Add(page);
+#endif
         }
 
         private void Dispose(bool managedAndNative)
