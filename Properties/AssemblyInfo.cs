@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("FiddlerCSP")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("CLeARINETCSP")]
+[assembly: AssemblyDescription("Content Security Policy rule collector for CLeARINET")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("FiddlerCSP")]
-[assembly: AssemblyCopyright("Copyright ©  2015")]
+[assembly: AssemblyProduct("CLeARINETCSP")]
+[assembly: AssemblyCopyright("Copyright © 2015 David Risney")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

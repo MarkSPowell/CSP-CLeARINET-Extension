@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The CSP Rule Collector for CLeARINET: builds CLeARINETCSP.dll. Copy that
+       one file into Documents\CLeARINET\Extensions (Windows) or
+       ~/Documents/CLeARINET/Extensions (macOS) and restart CLeARINET.
+       See Directory.Build.props for where CLeARINET's source must be. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>CLeARINETCSP</AssemblyName>
+    <RootNamespace>ClearinetCSP</RootNamespace>
+
+    <!-- The original code is .NET Framework-era C#: no implicit usings, no
+         nullable annotations, and its own Properties/AssemblyInfo.cs. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <NoWarn>$(NoWarn);CS0168;CS0169;CS0219;CS0162;CS0414;CS0649</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The unit tests are their own project. -->
+    <Compile Remove="UnitTests/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Private=false: CLeARINET supplies its compatibility layer at run time,
+         so no copy goes next to the extension. -->
+    <ProjectReference Include="$(ClearinetCompatibilityProject)" Private="false" />
+
+    <!-- Compile-time only, for the tab. At run time the extension uses
+         CLeARINET's own Avalonia, so the versions always match. Keep this in
+         step with CLeARINET's apps/Clearinet.DesktopUi. -->
+    <PackageReference Include="Avalonia" Version="12.1.2" IncludeAssets="compile" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="RequireClearinetSource" BeforeTargets="PrepareForBuild" Condition="!Exists('$(ClearinetCompatibilityProject)')">
+    <Error Text="CLeARINET's source wasn't found at $(ClearinetRoot). Clone CLeARINET next to this folder, or build with -p:ClearinetRoot=&lt;path to CLeARINET&gt;. See Directory.Build.props." />
+  </Target>
+
+</Project>

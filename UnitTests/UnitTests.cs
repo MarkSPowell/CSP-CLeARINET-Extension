@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace FiddlerCSP
+namespace ClearinetCSP
 {
     [TestClass]
     public class UnitTests
@@ -35,7 +35,7 @@ namespace FiddlerCSP
                 collector.Add(cspReport, CSPRuleCollector.InterpretBlank.UnsafeEval);
             }
 
-            Assert.AreEqual(collector.Get(documentUri), expectedCsp);
+            Assert.AreEqual(expectedCsp, collector.Get(documentUri));
         }
 
         [TestMethod]
@@ -50,7 +50,7 @@ namespace FiddlerCSP
             //  Weird issue with two violated directives: \"violated-directive\":\"script-src 'unsafe-eval'script-src 'unsafe-inline'
             ValidateCSPReportSet(
                 "https://status.modern.ie/",
-                "Content-Security-Policy: default-src 'none'; connect-src dc.services.visualstudio.com 'self' www.chromestatus.com; img-src 'self' ssl.google-analytics.com; script-src az416426.vo.msecnd.net 'self' www.google-analytics.com; style-src 'self'",
+                "Content-Security-Policy: default-src 'none'; connect-src 'self' dc.services.visualstudio.com www.chromestatus.com; img-src 'self' ssl.google-analytics.com; script-src 'self' az416426.vo.msecnd.net www.google-analytics.com; style-src 'self'",
                 new string[] {
                     "{\"csp-report\":{\"blocked-uri\":\"https://status.modern.ie/styles/c75c186a.main.css\",\"document-uri\":\"https://status.modern.ie/\",\"original-policy\":\"connect-src 'none'; font-src 'none'; frame-src 'none'; img-src 'none'; media-src 'none'; object-src 'none'; style-src 'none'; script-src 'unsafe-eval'; report-uri https://fiddlercsp.deletethis.net/unsafe-inline\",\"referrer\":\"\",\"violated-directive\":\"style-src 'none'\"}}",
                     "{\"csp-report\":{\"blocked-uri\":\"self\",\"document-uri\":\"https://status.modern.ie/\",\"line-number\":1,\"original-policy\":\"connect-src 'none'; font-src 'none'; frame-src 'none'; img-src 'none'; media-src 'none'; object-src 'none'; style-src 'none'; script-src 'unsafe-eval'; report-uri https://fiddlercsp.deletethis.net/unsafe-inline\",\"referrer\":\"\",\"script-sample\":\"(function () {\\n            if (navigator...\",\"source-file\":\"https://status.modern.ie/\",\"violated-directive\":\"script-src 'unsafe-eval'\"}}",
@@ -88,7 +88,7 @@ namespace FiddlerCSP
             //  CSP L2 <http://www.w3.org/TR/CSP11/>
             ValidateCSPReportSet(
                 "https://status.modern.ie/", 
-                "Content-Security-Policy: default-src 'none'; connect-src dc.services.visualstudio.com 'self' www.chromestatus.com; font-src www.modern.ie; img-src 'self' ssl.google-analytics.com; script-src az416426.vo.msecnd.net 'self' 'unsafe-eval' 'unsafe-inline' www.google-analytics.com; style-src 'self' 'unsafe-inline'",
+                "Content-Security-Policy: default-src 'none'; connect-src 'self' dc.services.visualstudio.com www.chromestatus.com; font-src www.modern.ie; img-src 'self' ssl.google-analytics.com; script-src 'self' 'unsafe-eval' 'unsafe-inline' az416426.vo.msecnd.net www.google-analytics.com; style-src 'self' 'unsafe-inline'",
                 new string[] { 
                     "{\"csp-report\":{\"document-uri\":\"https://status.modern.ie/\",\"referrer\":\"\",\"violated-directive\":\"img-src 'none'\",\"effective-directive\":\"img-src\",\"original-policy\":\"child-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'; img-src 'none'; media-src 'none'; object-src 'none'; style-src 'none'; script-src 'unsafe-eval'; report-uri https://fiddlercsp.deletethis.net/unsafe-inline\",\"blocked-uri\":\"https://status.modern.ie/images/655d5971.ie-logo.png\",\"status-code\":0}}",
                     "{\"csp-report\":{\"document-uri\":\"https://status.modern.ie/\",\"referrer\":\"\",\"violated-directive\":\"font-src 'none'\",\"effective-directive\":\"font-src\",\"original-policy\":\"child-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'; img-src 'none'; media-src 'none'; object-src 'none'; style-src 'none'; script-src 'unsafe-eval'; report-uri https://fiddlercsp.deletethis.net/unsafe-inline\",\"blocked-uri\":\"https://www.modern.ie\",\"status-code\":0}}",
@@ -115,6 +115,25 @@ namespace FiddlerCSP
                     "{\"csp-report\":{\"document-uri\":\"https://status.modern.ie/\",\"referrer\":\"\",\"violated-directive\":\"script-src 'unsafe-inline'\",\"effective-directive\":\"script-src\",\"original-policy\":\" script-src 'unsafe-inline'; report-uri https://fiddlercsp.deletethis.net/unsafe-eval\",\"blocked-uri\":\"https://www.google-analytics.com\",\"source-file\":\"https://status.modern.ie/\",\"line-number\":22,\"column-number\":22,\"status-code\":0}}",
                     "{\"csp-report\":{\"document-uri\":\"https://status.modern.ie/\",\"referrer\":\"\",\"violated-directive\":\"script-src 'unsafe-inline'\",\"effective-directive\":\"script-src\",\"original-policy\":\" script-src 'unsafe-inline'; report-uri https://fiddlercsp.deletethis.net/unsafe-eval\",\"blocked-uri\":\"https://status.modern.ie/scripts/044a95db.vendor.js\",\"status-code\":0}}",
                     "{\"csp-report\":{\"document-uri\":\"https://status.modern.ie/\",\"referrer\":\"\",\"violated-directive\":\"script-src 'unsafe-inline'\",\"effective-directive\":\"script-src\",\"original-policy\":\" script-src 'unsafe-inline'; report-uri https://fiddlercsp.deletethis.net/unsafe-eval\",\"blocked-uri\":\"https://status.modern.ie/scripts/0ba0e107.scripts.js\",\"status-code\":0}}",
+                });
+        }
+
+        [TestMethod]
+        public void TestCsp3KeywordBlockedUris()
+        {
+            // Current browsers (CSP Level 3) report inline code and eval() as
+            // the keywords "inline" and "eval", with fine-grained directives
+            // such as script-src-elem and style-src-attr.
+            ValidateCSPReportSet(
+                "https://example.test/",
+                "Content-Security-Policy: default-src 'none'; script-src 'unsafe-eval'; script-src-elem 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'",
+                new string[] {
+                    "{\"csp-report\":{\"document-uri\":\"https://example.test/\",\"effective-directive\":\"script-src-elem\",\"violated-directive\":\"script-src-elem\",\"blocked-uri\":\"inline\"}}",
+                    "{\"csp-report\":{\"document-uri\":\"https://example.test/\",\"effective-directive\":\"script-src-elem\",\"violated-directive\":\"script-src-elem\",\"blocked-uri\":\"https://example.test/app.js\"}}",
+                    "{\"csp-report\":{\"document-uri\":\"https://example.test/\",\"effective-directive\":\"style-src-attr\",\"violated-directive\":\"style-src-attr\",\"blocked-uri\":\"inline\"}}",
+                },
+                new string[] {
+                    "{\"csp-report\":{\"document-uri\":\"https://example.test/\",\"effective-directive\":\"script-src\",\"violated-directive\":\"script-src\",\"blocked-uri\":\"eval\"}}",
                 });
         }
     }

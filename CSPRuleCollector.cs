@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using Fiddler;
 
-namespace FiddlerCSP
+namespace ClearinetCSP
 {
     public class CSPRuleCollector : IDisposable
     {
@@ -29,8 +28,10 @@ namespace FiddlerCSP
             cacheLock.EnterReadLock();
             try
             {
-                result = rules[documentUri].OrderBy(x => x.Key).Select(entry => (
-                    entry.Value.OrderBy(x => x).Aggregate(entry.Key, (total, next) => (total + " " + next))
+                // Ordinal, so the rule comes out the same on every machine and
+                // culture. Quoted keywords ('self', 'unsafe-inline') sort first.
+                result = rules[documentUri].OrderBy(x => x.Key, StringComparer.Ordinal).Select(entry => (
+                    entry.Value.OrderBy(x => x, StringComparer.Ordinal).Aggregate(entry.Key, (total, next) => (total + " " + next))
                     )).Aggregate(prefix, (total, next) => (total + "; " + next));
             }
             finally
@@ -160,6 +161,20 @@ namespace FiddlerCSP
                 else if (blockedUri == "self") // Firefox can return self as the blocked-uri.
                 {
                     blockedUri = "'self'";
+                }
+                // CSP Level 3 browsers report inline code and eval() as these
+                // keywords rather than a blank blocked-uri.
+                else if (blockedUri == "inline")
+                {
+                    blockedUri = "'unsafe-inline'";
+                }
+                else if (blockedUri == "eval")
+                {
+                    blockedUri = "'unsafe-eval'";
+                }
+                else if (blockedUri == "wasm-eval")
+                {
+                    blockedUri = "'wasm-unsafe-eval'";
                 }
                 else // Lastly CSP reports may contain schemes with no delimiters just the scheme name.
                 {

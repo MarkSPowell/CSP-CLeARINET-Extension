@@ -7,9 +7,8 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Runtime.Serialization.Json;
-using Fiddler;
 
-namespace FiddlerCSP
+namespace ClearinetCSP
 {
     [DataContract]
     public class CSPReport

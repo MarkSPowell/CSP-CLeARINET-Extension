@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace FiddlerCSP
+namespace ClearinetCSP
 {
     public interface ILogger
     {

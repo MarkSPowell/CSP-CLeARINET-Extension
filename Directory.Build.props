@@ -1,0 +1,19 @@
+<Project>
+
+  <!-- Where CLeARINET's source is. This extension builds against CLeARINET's
+       compatibility layer (src/Clearinet.Compatibility), so it needs a copy
+       of the CLeARINET repository:
+
+       - Inside CLeARINET's repo (where CLeARINET's port.ps1 puts it for its
+         tests and CI), that repo is found automatically.
+       - Otherwise, a CLeARINET clone next to this one is used
+         (GitHub\CLeARINET beside GitHub\CSP-CLeARINET-Extension).
+       - Or pass it explicitly: dotnet build -p:ClearinetRoot=C:\path\to\CLeARINET -->
+  <PropertyGroup>
+    <ClearinetRoot Condition="'$(ClearinetRoot)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)../', 'CLeARINET.sln'))</ClearinetRoot>
+    <ClearinetRoot Condition="'$(ClearinetRoot)' == ''">$(MSBuildThisFileDirectory)../CLeARINET</ClearinetRoot>
+    <ClearinetRoot>$([MSBuild]::EnsureTrailingSlash('$(ClearinetRoot)'))</ClearinetRoot>
+    <ClearinetCompatibilityProject>$(ClearinetRoot)src/Clearinet.Compatibility/Clearinet.Compatibility.csproj</ClearinetCompatibilityProject>
+  </PropertyGroup>
+
+</Project>
