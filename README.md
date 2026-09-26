@@ -43,6 +43,11 @@ and restart CLeARINET:
   CLeARINET intercepts HTTPS only, so use an HTTPS page.
 - Select the page's URI in the tab to see its rules.
 
+While collecting, the browser sends many report requests to
+`fiddlercsp.deletethis.net`. The extension answers them itself, so they never
+leave your machine. They're shown struck through in the session list; to
+leave them out of it, tick **Tools > Hide CSP Report Requests**.
+
 Don't leave **Enable Rule Collection** on. While it's on, the extension makes
 responses non-cacheable and adds CSP headers, which can fill the browser's
 developer console with errors.

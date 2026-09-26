@@ -22,6 +22,11 @@ namespace ClearinetCSP
                 get { return FiddlerApplication.Prefs.GetBoolPref(prefix + "enabled", false); }
                 set { FiddlerApplication.Prefs.SetBoolPref(prefix + "enabled", value); }
             }
+            public static bool hideReports
+            {
+                get { return FiddlerApplication.Prefs.GetBoolPref(prefix + "hideReports", false); }
+                set { FiddlerApplication.Prefs.SetBoolPref(prefix + "hideReports", value); }
+            }
         }
 
         public class HostLogger : ILogger
@@ -38,6 +43,7 @@ namespace ClearinetCSP
         public static string reportHost = "fiddlercsp.deletethis.net";
         private ILogger logger;
         private CSPRuleCollector collector;
+        private MenuItem hideReportsMenuItem;
 
         public CspExtension()
         {
@@ -55,8 +61,9 @@ namespace ClearinetCSP
 
             if (!session.HostnameIs(reportHost) || session.isFTP) return;
 
-            // TODO: We should offer an option to hide the reports from the session list; change "ui-strikeout" to "ui-hide" in the next line
-            session["ui-strikeout"] = "CSPReportGenerator";
+            // Report requests are struck through in the session list, or left
+            // out of it with Tools > Hide CSP Report Requests.
+            session[Settings.hideReports ? "ui-hide" : "ui-strikeout"] = "CSPReportGenerator";
 
             if (session.HTTPMethodIs("CONNECT"))
             {
@@ -126,7 +133,21 @@ namespace ClearinetCSP
 
         public void OnLoad()
         {
+            AddMenu();
             AddTab();
+        }
+
+        // Tools > Hide CSP Report Requests. Applies to reports from then on;
+        // ones already in the session list stay there.
+        private void AddMenu()
+        {
+            hideReportsMenuItem = new MenuItem("&Hide CSP Report Requests", (sender, e) =>
+            {
+                Settings.hideReports = !Settings.hideReports;
+                hideReportsMenuItem.Checked = Settings.hideReports;
+            });
+            hideReportsMenuItem.Checked = Settings.hideReports;
+            FiddlerApplication.UI.mnuTools.MenuItems.Add(hideReportsMenuItem);
         }
 
         private void AddTab()
